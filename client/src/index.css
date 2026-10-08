@@ -55,12 +55,299 @@ button {
   position: relative;
   min-height: 100%;
   isolation: isolate;
-  overflow: hidden;
 }
 
-/* —— Atmosphere —— */
+.app--home {
+  overflow: auto;
+  background: #fef7ef;
+}
+
+.app--home .home {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 1.5rem;
+}
+
+.app--session {
+  overflow: hidden;
+  height: 100%;
+}
+
+/* —— Classic Omegle-style homepage —— */
+.home {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  color: #222;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+.home__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  margin: 0 0 0.85rem;
+  padding: 0.15rem 0.1rem;
+  background: transparent;
+  border: none;
+}
+
+.home__logo {
+  display: block;
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+.home__tag {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.home__panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(40, 30, 20, 0.08);
+  padding: 1rem 1.15rem 1.35rem;
+  width: 100%;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.home__hero {
+  width: 100%;
+  line-height: 0;
+  margin: 0 0 1rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #3aa0ff;
+}
+
+.home__hero-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.home__subhead {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.home__note {
+  margin: 0 0 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #333;
+}
+
+.home__headline {
+  margin: 0 0 0.65rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.interests {
+  margin-bottom: 0.95rem;
+}
+
+.interests__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  min-height: 42px;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d7d0c6;
+  border-radius: 8px;
+  background: #fffcf8;
+}
+
+.interests__tag {
+  border: none;
+  background: #e8f3ff;
+  color: #1a6fb5;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.interests__input {
+  flex: 1;
+  min-width: 140px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.9rem;
+  padding: 0.25rem;
+  color: #222;
+}
+
+.interests__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.home__copy {
+  margin: 0 0 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #333;
+}
+
+.home__copy--small {
+  font-size: 0.88rem;
+  color: #444;
+}
+
+.home__age {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #222;
+}
+
+.home__alert {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: #d9ecff;
+  color: #0f3d66;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.home__alert-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f5c542;
+  color: #222;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.home__start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 1.1rem;
+  padding-top: 0.35rem;
+}
+
+.home__start-label {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.btn-video {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-width: 168px;
+  padding: 0.85rem 1.6rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #5eb6ff 0%, #2f8de8 55%, #2477cc 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 6px 16px rgba(47, 141, 232, 0.35);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.btn-video:hover {
+  filter: brightness(1.04);
+}
+
+.btn-video:active {
+  transform: scale(0.98);
+}
+
+.home__online {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #666;
+}
+
+.home__online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22a06b;
+}
+
+.home__error {
+  margin: 0.85rem 0 0;
+  color: #c23b3b;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.home__footer {
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+  width: 100%;
+  margin: 0;
+}
+
+.home__footer p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8a8378;
+}
+
+/* —— Session chrome —— */
+.session {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.85rem;
+  height: 100%;
+  max-height: 100%;
+  padding: 0.85rem clamp(0.85rem, 2vw, 1.25rem) 1rem;
+}
+
 .atmosphere {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -70,19 +357,7 @@ button {
 .atmosphere__wash {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(160deg, #f4f6fa 0%, #e8eef5 45%, #dde7f0 100%);
-}
-
-.atmosphere__grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image:
-    linear-gradient(rgba(12, 18, 34, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(12, 18, 34, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+  background: linear-gradient(160deg, #f4f6fa 0%, #e8eef5 45%, #dde7f0 100%);
 }
 
 .atmosphere__glow {
@@ -97,7 +372,7 @@ button {
   height: min(55vw, 480px);
   top: -10%;
   left: -6%;
-  background: radial-gradient(circle, rgba(20, 148, 142, 0.22), transparent 70%);
+  background: radial-gradient(circle, rgba(56, 182, 255, 0.28), transparent 70%);
 }
 
 .atmosphere__glow--b {
@@ -105,52 +380,39 @@ button {
   height: min(50vw, 420px);
   right: -8%;
   bottom: -12%;
-  background: radial-gradient(circle, rgba(55, 90, 140, 0.18), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 79, 216, 0.2), transparent 70%);
   animation-delay: -6s;
 }
 
-.landing,
-.session {
+.session__header {
   position: relative;
   z-index: 1;
-  min-height: 100%;
-}
-
-/* —— Shared chrome —— */
-.topbar,
-.session__header {
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-height: 48px;
+  padding: 0 0.15rem;
 }
 
-.logo-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--navy);
-  display: grid;
-  place-items: center;
+.logo {
+  display: block;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
-.logo-mark span {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--teal-bright);
-  box-shadow: 0 0 0 3px rgba(20, 148, 142, 0.25);
+.logo--nav {
+  width: auto;
+  height: 40px;
 }
 
-.logo-mark--sm {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+.brand {
+  margin: 0;
+  line-height: 0;
 }
 
-.logo-mark--sm span {
-  width: 8px;
-  height: 8px;
+.brand--nav {
+  margin: 0;
+  line-height: 0;
 }
 
 .presence {
@@ -176,94 +438,18 @@ button {
   animation: soft-pulse 2.4s ease-out infinite;
 }
 
-/* —— Landing —— */
-.landing {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: clamp(1.25rem, 3.5vw, 2.25rem) clamp(1.25rem, 4vw, 3rem);
-}
-
-.hero {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  max-width: 16ch;
-  animation: rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.brand {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(5rem, 15vw, 9rem);
-  line-height: 0.9;
-  letter-spacing: -0.03em;
-  color: var(--navy);
-  animation: brand-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.brand--nav {
-  font-size: 1.35rem;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.tagline {
-  margin: 1.35rem 0 0;
-  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
-  line-height: 1.45;
-  color: var(--slate);
-  max-width: 28ch;
-  font-weight: 500;
-  animation: rise 0.85s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.hero__actions {
-  margin-top: 2.25rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.85rem;
-  animation: rise 0.95s 0.14s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.hero__hint {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--mist);
-  font-weight: 500;
-}
-
-.landing__foot {
-  padding-top: 1rem;
-}
-
-.landing__foot p {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--mist);
-  font-weight: 500;
-}
-
-/* —— Session —— */
-.session {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 0.85rem;
-  height: 100%;
-  max-height: 100%;
-  padding: 0.85rem clamp(0.85rem, 2vw, 1.25rem) 1rem;
-}
-
-.session__header {
-  min-height: 48px;
-  padding: 0 0.15rem;
-}
-
 .session__brand {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.session__body,
+.stage,
+.chat,
+.dock {
+  position: relative;
+  z-index: 1;
 }
 
 .status-chip {
@@ -822,9 +1008,6 @@ button {
     margin-left: auto;
   }
 
-  .hero {
-    max-width: none;
-  }
 }
 
 @media (max-width: 520px) {
@@ -837,7 +1020,19 @@ button {
     justify-content: center;
   }
 
-  .brand {
-    font-size: clamp(4.2rem, 22vw, 6rem);
+  .home__tag {
+    font-size: 0.95rem;
+  }
+
+  .home__panel {
+    padding: 0.85rem;
+  }
+
+  .home__subhead {
+    font-size: 1.02rem;
+  }
+
+  .btn-video {
+    width: 100%;
   }
 }
