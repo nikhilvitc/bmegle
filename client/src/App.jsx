@@ -121,28 +121,12 @@ export default function App() {
 
   const [draft, setDraft] = useState("");
   const [started, setStarted] = useState(false);
-  const [interestInput, setInterestInput] = useState("");
-  const [interests, setInterests] = useState([]);
   const chatEndRef = useRef(null);
   const canChat = status === "connected" || status === "connecting";
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const addInterest = (raw) => {
-    const tag = raw.trim().toLowerCase().replace(/[^a-z0-9+\-#\s]/g, "");
-    if (!tag || interests.includes(tag) || interests.length >= 10) return;
-    setInterests((prev) => [...prev, tag]);
-  };
-
-  const handleInterestKey = (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addInterest(interestInput);
-      setInterestInput("");
-    }
-  };
 
   const handleStart = async () => {
     setStarted(true);
@@ -180,88 +164,23 @@ export default function App() {
             <div className="home__hero">
               <img
                 src="/hero.jpg"
-                alt="bmegle global video chat — connect with strangers worldwide"
+                alt="bmegle — random video chat"
                 className="home__hero-img"
                 width="1400"
                 height="788"
               />
             </div>
 
-            <h2 className="home__subhead">
-              Your trusted choice for safe, fast &amp; anonymous random video chat
-            </h2>
-
-            <p className="home__note">
-              You don’t need an app to use bmegle on your phone or tablet! The
-              website works great on mobile.
-            </p>
-
-            <h3 className="home__headline">Meet strangers with your interests!</h3>
-
-            <div className="interests">
-              <div className="interests__tags">
-                {interests.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className="interests__tag"
-                    onClick={() =>
-                      setInterests((prev) => prev.filter((t) => t !== tag))
-                    }
-                    title="Remove"
-                  >
-                    {tag} ×
-                  </button>
-                ))}
-                <input
-                  className="interests__input"
-                  value={interestInput}
-                  onChange={(e) => setInterestInput(e.target.value)}
-                  onKeyDown={handleInterestKey}
-                  onBlur={() => {
-                    if (interestInput.trim()) {
-                      addInterest(interestInput);
-                      setInterestInput("");
-                    }
-                  }}
-                  placeholder={
-                    interests.length
-                      ? "Add another interest…"
-                      : "Add your interests (optional)"
-                  }
-                />
-              </div>
-              <p className="interests__hint">
-                Press Enter after each interest. Leave empty for a fully random
-                match.
-              </p>
-            </div>
-
             <p className="home__copy">
-              <strong>bmegle</strong> is a fun way to meet new people. You’re
-              paired randomly with another person for one-on-one video and chat.
-              Add interests if you want a better chance of matching with someone
-              who picked some of the same ones. Chats are anonymous unless you
-              share who you are (not recommended), and you can stop anytime.
-              Video chat requires camera and microphone access. Users are solely
-              responsible for their behavior while using bmegle.
+              <strong>bmegle</strong> pairs you randomly with another person for
+              one-on-one video and chat. Works in your browser on phone or
+              desktop — no app needed. Camera and microphone access are required.
+              You can stop or skip anytime.
             </p>
 
             <p className="home__age">
               <strong>YOU MUST BE 18 OR OLDER TO USE BMEGLE.</strong> By starting,
-              you confirm you are 18+ and will keep conversations respectful.
-            </p>
-
-            <div className="home__alert">
-              <span>Video is monitored. Keep it clean</span>
-              <span className="home__alert-icon" aria-hidden>
-                !
-              </span>
-            </div>
-
-            <p className="home__copy home__copy--small">
-              Leave bmegle and visit an adult site instead if that’s what you’re
-              looking for, and you are 18 or older.
+              you confirm you are 18+.
             </p>
 
             <div className="home__start">
