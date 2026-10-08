@@ -205,6 +205,16 @@ export default function App() {
           </header>
 
           <section className="home__panel">
+            <div className="home__hero">
+              <img
+                src="/hero.jpg"
+                alt="bmegle"
+                className="home__hero-img"
+                width="1400"
+                height="788"
+              />
+            </div>
+
             <p className="home__copy">
               <strong>bmegle</strong> is a simple way to meet people in Bengaluru.
               You get randomly paired for one-on-one video and text chat. No app —
