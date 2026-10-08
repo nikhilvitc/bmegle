@@ -109,6 +109,8 @@ export default function App() {
     error,
     micOn,
     camOn,
+    locationBlocked,
+    paired,
     localVideoRef,
     remoteVideoRef,
     start,
@@ -117,18 +119,88 @@ export default function App() {
     sendChat,
     toggleMic,
     toggleCam,
+    setCoords,
   } = useBmegle();
 
   const [draft, setDraft] = useState("");
   const [started, setStarted] = useState(false);
+  const [geoStatus, setGeoStatus] = useState("checking"); // checking | allowed | blocked
+  const [geoMessage, setGeoMessage] = useState("");
   const chatEndRef = useRef(null);
-  const canChat = status === "connected" || status === "connecting";
+  const canChat = paired;
+  const blocked = geoStatus === "blocked" || locationBlocked;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkLocation() {
+      try {
+        const res = await fetch("/api/location");
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.allowed) {
+          setGeoStatus("allowed");
+          setGeoMessage("");
+          return;
+        }
+
+        // IP said no — try browser GPS as a second chance (helps on bad ISP geo).
+        if (!navigator.geolocation) {
+          setGeoStatus("blocked");
+          setGeoMessage(
+            data.message || "bmegle is only available in Bengaluru."
+          );
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (cancelled) return;
+            const { latitude, longitude } = pos.coords;
+            setCoords(latitude, longitude);
+            const inBlr =
+              latitude >= 12.7 &&
+              latitude <= 13.25 &&
+              longitude >= 77.35 &&
+              longitude <= 77.85;
+            if (inBlr) {
+              setGeoStatus("allowed");
+              setGeoMessage("");
+            } else {
+              setGeoStatus("blocked");
+              setGeoMessage("bmegle is only available in Bengaluru right now.");
+            }
+          },
+          () => {
+            if (cancelled) return;
+            setGeoStatus("blocked");
+            setGeoMessage(
+              data.message || "bmegle is only available in Bengaluru."
+            );
+          },
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+        );
+      } catch {
+        if (!cancelled) {
+          setGeoStatus("allowed");
+          setGeoMessage("");
+        }
+      }
+    }
+
+    checkLocation();
+    return () => {
+      cancelled = true;
+    };
+  }, [setCoords]);
+
   const handleStart = async () => {
+    if (blocked || geoStatus === "checking") return;
     setStarted(true);
     await start();
   };
@@ -180,8 +252,18 @@ export default function App() {
 
             <p className="home__age">
               <strong>YOU MUST BE 18 OR OLDER TO USE BMEGLE.</strong> By starting,
-              you confirm you are 18+.
+              you confirm you are 18+. Currently available in{" "}
+              <strong>Bengaluru only</strong>.
             </p>
+
+            {blocked && (
+              <div className="home__alert home__alert--block">
+                <span>
+                  {geoMessage ||
+                    "bmegle is only available in Bengaluru (Bangalore)."}
+                </span>
+              </div>
+            )}
 
             <div className="home__start">
               <p className="home__start-label">Start chatting:</p>
@@ -189,9 +271,12 @@ export default function App() {
                 type="button"
                 className="btn-video"
                 onClick={handleStart}
+                disabled={blocked || geoStatus === "checking"}
               >
                 <IconRun />
-                <span>Video</span>
+                <span>
+                  {geoStatus === "checking" ? "Checking location…" : "Video"}
+                </span>
               </button>
               <p className="home__online">
                 <span className="home__online-dot" />

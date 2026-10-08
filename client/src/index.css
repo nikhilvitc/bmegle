@@ -240,6 +240,18 @@ button {
   text-align: center;
 }
 
+.home__alert--block {
+  background: #ffe8e6;
+  color: #8a1f1a;
+  font-weight: 600;
+}
+
+.btn-video:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
 .home__alert-icon {
   display: inline-grid;
   place-items: center;

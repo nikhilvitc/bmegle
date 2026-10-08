@@ -57,5 +57,6 @@ Put it behind any HTTPS reverse proxy.
 
 - **Camera/mic only work on HTTPS** (or localhost)
 - Both users must be online at the same time to match
+- **Bengaluru-only access** is on in production (`BANGALORE_ONLY=true`). Uses IP geolocation; localhost is allowed for local testing. Set `BANGALORE_ONLY=false` to disable.
 - STUN/TURN is configured for real-world networks; for serious traffic, add your own TURN (Metered, Twilio, or coturn) in `client/src/useBmegle.js`
 - Health check: `GET /health`
