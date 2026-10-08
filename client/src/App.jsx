@@ -4,13 +4,13 @@ import { useBmegle } from "./useBmegle";
 function statusLabel(status) {
   switch (status) {
     case "searching":
-      return "Finding a match";
+      return "Looking for someone…";
     case "connecting":
-      return "Establishing connection";
+      return "Connecting…";
     case "connected":
       return "Connected";
     default:
-      return "Not in a call";
+      return "Stopped";
   }
 }
 
@@ -78,29 +78,6 @@ function IconCam({ on }) {
   );
 }
 
-function IconSend() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 12h14M13 6l6 6-6 6"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconRun() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.18)" />
-      <path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" />
-    </svg>
-  );
-}
-
 export default function App() {
   const {
     status,
@@ -124,7 +101,7 @@ export default function App() {
 
   const [draft, setDraft] = useState("");
   const [started, setStarted] = useState(false);
-  const [geoStatus, setGeoStatus] = useState("checking"); // checking | allowed | blocked
+  const [geoStatus, setGeoStatus] = useState("checking");
   const [geoMessage, setGeoMessage] = useState("");
   const chatEndRef = useRef(null);
   const canChat = paired;
@@ -149,12 +126,9 @@ export default function App() {
           return;
         }
 
-        // IP said no — try browser GPS as a second chance (helps on bad ISP geo).
         if (!navigator.geolocation) {
           setGeoStatus("blocked");
-          setGeoMessage(
-            data.message || "bmegle is only available in Bengaluru."
-          );
+          setGeoMessage(data.message || "bmegle is only available in Bengaluru.");
           return;
         }
 
@@ -173,15 +147,13 @@ export default function App() {
               setGeoMessage("");
             } else {
               setGeoStatus("blocked");
-              setGeoMessage("bmegle is only available in Bengaluru right now.");
+              setGeoMessage("bmegle is only available in Bengaluru.");
             }
           },
           () => {
             if (cancelled) return;
             setGeoStatus("blocked");
-            setGeoMessage(
-              data.message || "bmegle is only available in Bengaluru."
-            );
+            setGeoMessage(data.message || "bmegle is only available in Bengaluru.");
           },
           { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
         );
@@ -233,36 +205,22 @@ export default function App() {
           </header>
 
           <section className="home__panel">
-            <div className="home__hero">
-              <img
-                src="/hero.jpg"
-                alt="bmegle — random video chat"
-                className="home__hero-img"
-                width="1400"
-                height="788"
-              />
-            </div>
-
             <p className="home__copy">
-              <strong>bmegle</strong> pairs you randomly with another person for
-              one-on-one video and chat. Works in your browser on phone or
-              desktop — no app needed. Camera and microphone access are required.
-              You can stop or skip anytime.
+              <strong>bmegle</strong> is a simple way to meet people in Bengaluru.
+              You get randomly paired for one-on-one video and text chat. No app —
+              just use this site. You’ll need camera and mic access. Stop or skip
+              whenever you want.
             </p>
 
             <p className="home__age">
-              <strong>YOU MUST BE 18 OR OLDER TO USE BMEGLE.</strong> By starting,
-              you confirm you are 18+. Currently available in{" "}
-              <strong>Bengaluru only</strong>.
+              <strong>18+ only.</strong> By clicking Video, you confirm you are 18
+              or older. Bengaluru only.
             </p>
 
             {blocked && (
-              <div className="home__alert home__alert--block">
-                <span>
-                  {geoMessage ||
-                    "bmegle is only available in Bengaluru (Bangalore)."}
-                </span>
-              </div>
+              <p className="home__blocked">
+                {geoMessage || "bmegle is only available in Bengaluru."}
+              </p>
             )}
 
             <div className="home__start">
@@ -273,58 +231,34 @@ export default function App() {
                 onClick={handleStart}
                 disabled={blocked || geoStatus === "checking"}
               >
-                <IconRun />
-                <span>
-                  {geoStatus === "checking" ? "Checking location…" : "Video"}
-                </span>
+                {geoStatus === "checking" ? "Checking…" : "Video"}
               </button>
-              <p className="home__online">
-                <span className="home__online-dot" />
-                {online} online now
-              </p>
+              <p className="home__online">{online} online</p>
             </div>
 
             {error && <p className="home__error">{error}</p>}
           </section>
 
           <footer className="home__footer">
-            <p>© {new Date().getFullYear()} bmegle · Peer-to-peer video · We don’t record your calls</p>
+            <p>© {new Date().getFullYear()} bmegle</p>
           </footer>
         </main>
       ) : (
         <main className="session">
-          <div className="atmosphere" aria-hidden>
-            <div className="atmosphere__wash" />
-            <div className="atmosphere__glow atmosphere__glow--a" />
-            <div className="atmosphere__glow atmosphere__glow--b" />
-          </div>
-
           <header className="session__header">
-            <div className="session__brand">
-              <h1 className="brand brand--nav">
-                <img
-                  src="/logo.png"
-                  alt="bmegle"
-                  className="logo logo--nav"
-                  width="160"
-                  height="160"
-                />
-              </h1>
-            </div>
-
-            <div className={`status-chip status-chip--${status}`}>
-              <span className="status-chip__dot" />
-              {statusLabel(status)}
-            </div>
-
-            <span className="presence presence--quiet">
-              <span className="presence__dot" />
-              {online} online
-            </span>
+            <img
+              src="/logo.png"
+              alt="bmegle"
+              className="logo logo--nav"
+              width="120"
+              height="120"
+            />
+            <p className="session__status">{statusLabel(status)}</p>
+            <span className="session__online">{online} online</span>
           </header>
 
           <div className="session__body">
-            <section className="stage" aria-label="Video call">
+            <section className="stage" aria-label="Video">
               <div className="stage__remote">
                 <video
                   ref={remoteVideoRef}
@@ -334,50 +268,32 @@ export default function App() {
                 />
                 {status !== "connected" && (
                   <div className="stage__empty">
-                    <div className="spinner" aria-hidden />
-                    <p className="stage__empty-title">{statusLabel(status)}</p>
-                    <p className="stage__empty-sub">
-                      {status === "searching"
-                        ? "You’ll be paired as soon as someone else is available."
-                        : status === "connecting"
-                          ? "Setting up a secure peer connection…"
-                          : "Press Find to start matching."}
-                    </p>
+                    <p>{statusLabel(status)}</p>
                   </div>
                 )}
                 {status === "connected" && (
-                  <span className="stage__badge">Stranger</span>
+                  <span className="stage__label">Stranger</span>
                 )}
               </div>
 
               <div className={`stage__self ${camOn ? "" : "is-off"}`}>
                 <video ref={localVideoRef} autoPlay playsInline muted />
                 {!camOn && <span className="stage__self-off">Camera off</span>}
-                <span className="stage__badge stage__badge--self">You</span>
+                <span className="stage__label stage__label--self">You</span>
               </div>
             </section>
 
             <aside className="chat" aria-label="Chat">
-              <div className="chat__head">
-                <h2>Chat</h2>
-                <span>{canChat ? "Live" : "Idle"}</span>
-              </div>
-
               <div className="chat__log">
                 {messages.length === 0 && (
-                  <p className="chat__empty">
-                    Messages with your match will appear here.
-                  </p>
+                  <p className="chat__empty">Chat will show up here.</p>
                 )}
                 {messages.map((m) => (
-                  <div key={m.id} className={`msg msg--${m.from}`}>
-                    {m.from !== "system" && (
-                      <span className="msg__who">
-                        {m.from === "you" ? "You" : "Stranger"}
-                      </span>
-                    )}
-                    <p className="msg__text">{m.text}</p>
-                  </div>
+                  <p key={m.id} className={`msg msg--${m.from}`}>
+                    {m.from === "you" && <strong>You: </strong>}
+                    {m.from === "stranger" && <strong>Stranger: </strong>}
+                    {m.text}
+                  </p>
                 ))}
                 <div ref={chatEndRef} />
               </div>
@@ -387,68 +303,57 @@ export default function App() {
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder={canChat ? "Write a message…" : "Connect to chat"}
+                  placeholder={canChat ? "Type here…" : "Waiting for a match…"}
                   disabled={!canChat}
                   maxLength={500}
                   autoComplete="off"
                 />
-                <button
-                  type="submit"
-                  className="btn btn--icon"
-                  disabled={!draft.trim() || !canChat}
-                  aria-label="Send message"
-                >
-                  <IconSend />
+                <button type="submit" disabled={!draft.trim() || !canChat}>
+                  Send
                 </button>
               </form>
             </aside>
           </div>
 
           <footer className="dock">
-            <div className="dock__cluster">
-              <button
-                type="button"
-                className={`btn btn--tool ${micOn ? "" : "is-muted"}`}
-                onClick={toggleMic}
-                aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
-                title={micOn ? "Mute" : "Unmute"}
-              >
-                <IconMic on={micOn} />
-              </button>
-              <button
-                type="button"
-                className={`btn btn--tool ${camOn ? "" : "is-muted"}`}
-                onClick={toggleCam}
-                aria-label={camOn ? "Turn camera off" : "Turn camera on"}
-                title={camOn ? "Camera off" : "Camera on"}
-              >
-                <IconCam on={camOn} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className={`dock__btn ${micOn ? "" : "is-off"}`}
+              onClick={toggleMic}
+              aria-label={micOn ? "Mute" : "Unmute"}
+            >
+              <IconMic on={micOn} />
+            </button>
+            <button
+              type="button"
+              className={`dock__btn ${camOn ? "" : "is-off"}`}
+              onClick={toggleCam}
+              aria-label={camOn ? "Camera off" : "Camera on"}
+            >
+              <IconCam on={camOn} />
+            </button>
 
-            <div className="dock__cluster dock__cluster--main">
-              {(status === "connected" || status === "connecting") && (
-                <button type="button" className="btn btn--primary" onClick={next}>
-                  Next
-                </button>
-              )}
-              {status === "searching" && (
-                <button type="button" className="btn btn--primary" disabled>
-                  Searching…
-                </button>
-              )}
-              {status === "idle" && (
-                <button type="button" className="btn btn--primary" onClick={start}>
-                  Find someone
-                </button>
-              )}
-              <button type="button" className="btn btn--danger" onClick={handleStop}>
-                Stop
+            {(status === "connected" || status === "connecting" || paired) && (
+              <button type="button" className="dock__btn dock__btn--main" onClick={next}>
+                Next
               </button>
-            </div>
+            )}
+            {status === "searching" && !paired && (
+              <button type="button" className="dock__btn dock__btn--main" disabled>
+                Looking…
+              </button>
+            )}
+            {status === "idle" && !paired && (
+              <button type="button" className="dock__btn dock__btn--main" onClick={start}>
+                New
+              </button>
+            )}
+            <button type="button" className="dock__btn dock__btn--stop" onClick={handleStop}>
+              Stop
+            </button>
           </footer>
 
-          {error && <p className="banner banner--error banner--float">{error}</p>}
+          {error && <p className="session__error">{error}</p>}
         </main>
       )}
     </div>

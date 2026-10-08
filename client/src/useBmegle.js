@@ -218,7 +218,7 @@ export function useBmegle() {
         {
           id: crypto.randomUUID(),
           from: "system",
-          text: "Connected. You can chat while video connects.",
+          text: "You're connected. Say hi.",
         },
       ]);
       try {
@@ -276,7 +276,7 @@ export function useBmegle() {
       cleanupPeerRef.current();
       setPairedStateRef.current(false);
       setStatus("idle");
-      pushMessage(setMessages, "system", "The other person left the call.");
+      pushMessage(setMessages, "system", "Stranger disconnected.");
     });
 
     socket.on("stopped", () => {
