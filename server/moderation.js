@@ -8,7 +8,7 @@ const REPORT_REASONS = new Set([
 
 const STRIKE_LIMIT = Number(process.env.REPORT_STRIKE_LIMIT) || 3;
 const WINDOW_MS = Number(process.env.REPORT_WINDOW_MS) || 24 * 60 * 60 * 1000;
-const BAN_MS = Number(process.env.REPORT_BAN_MS) || 24 * 60 * 60 * 1000;
+const BAN_MS = Number(process.env.REPORT_BAN_MS) || 2 * 60 * 1000;
 const REPORT_COOLDOWN_MS = 10_000;
 
 /** @type {Array<{ at: number, reason: string, reporterId: string, reportedId: string, reportedIp: string, mode: string }>} */
