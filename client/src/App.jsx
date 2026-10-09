@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useBmegle } from "./useBmegle";
 
-function statusLabel(status) {
+function statusLabel(status, mode) {
   switch (status) {
     case "searching":
-      return "Looking for someone…";
+      return mode === "text" ? "Looking for a chat…" : "Looking for someone…";
     case "connecting":
       return "Connecting…";
     case "connected":
-      return "Connected";
+      return mode === "text" ? "Chatting" : "Connected";
     default:
       return "Stopped";
   }
@@ -88,6 +88,7 @@ export default function App() {
     camOn,
     locationBlocked,
     paired,
+    mode,
     localVideoRef,
     remoteVideoRef,
     start,
@@ -104,12 +105,20 @@ export default function App() {
   const [geoStatus, setGeoStatus] = useState("checking");
   const [geoMessage, setGeoMessage] = useState("");
   const chatEndRef = useRef(null);
+  const chatInputRef = useRef(null);
   const canChat = paired;
   const blocked = geoStatus === "blocked" || locationBlocked;
+  const isText = mode === "text";
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (started && isText && canChat) {
+      chatInputRef.current?.focus();
+    }
+  }, [started, isText, canChat, paired]);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,10 +180,10 @@ export default function App() {
     };
   }, [setCoords]);
 
-  const handleStart = async () => {
+  const handleStart = async (nextMode) => {
     if (blocked || geoStatus === "checking") return;
     setStarted(true);
-    await start();
+    await start(nextMode);
   };
 
   const handleSend = (e) => {
@@ -218,14 +227,13 @@ export default function App() {
             <div className="home__body">
               <p className="home__copy">
                 <strong>bmegle</strong> is a simple way to meet people in
-                Bengaluru. You get randomly paired for one-on-one video and text
-                chat. No app — just use this site. You’ll need camera and mic
-                access. Stop or skip whenever you want.
+                Bengaluru. Pick text chat (no camera) or video chat. You’re
+                randomly paired one-on-one. Stop or skip whenever you want.
               </p>
 
               <p className="home__age">
-                <strong>18+ only.</strong> By clicking Video, you confirm you are
-                18 or older. Bengaluru only.
+                <strong>18+ only.</strong> By starting, you confirm you are 18 or
+                older. Bengaluru only.
               </p>
 
               {blocked && (
@@ -236,14 +244,24 @@ export default function App() {
 
               <div className="home__start">
                 <p className="home__start-label">Start chatting:</p>
-                <button
-                  type="button"
-                  className="btn-video"
-                  onClick={handleStart}
-                  disabled={blocked || geoStatus === "checking"}
-                >
-                  {geoStatus === "checking" ? "Checking…" : "Video"}
-                </button>
+                <div className="home__actions">
+                  <button
+                    type="button"
+                    className="btn-mode btn-mode--text"
+                    onClick={() => handleStart("text")}
+                    disabled={blocked || geoStatus === "checking"}
+                  >
+                    {geoStatus === "checking" ? "Checking…" : "Text"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-mode btn-mode--video"
+                    onClick={() => handleStart("video")}
+                    disabled={blocked || geoStatus === "checking"}
+                  >
+                    {geoStatus === "checking" ? "Checking…" : "Video"}
+                  </button>
+                </div>
                 <p className="home__online">{online} online</p>
               </div>
 
@@ -256,7 +274,7 @@ export default function App() {
           </footer>
         </main>
       ) : (
-        <main className="session">
+        <main className={`session ${isText ? "session--text" : ""}`}>
           <header className="session__header">
             <img
               src="/logo.png"
@@ -265,40 +283,57 @@ export default function App() {
               width="120"
               height="120"
             />
-            <p className="session__status">{statusLabel(status)}</p>
+            <p className="session__status">{statusLabel(status, mode)}</p>
+            <span className="session__mode">{isText ? "Text" : "Video"}</span>
             <span className="session__online">{online} online</span>
           </header>
 
           <div className="session__body">
-            <section className="stage" aria-label="Video">
-              <div className="stage__remote">
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className={status === "connected" ? "is-live" : ""}
-                />
-                {status !== "connected" && (
-                  <div className="stage__empty">
-                    <p>{statusLabel(status)}</p>
-                  </div>
-                )}
-                {status === "connected" && (
-                  <span className="stage__label">Stranger</span>
-                )}
-              </div>
+            {!isText && (
+              <section className="stage" aria-label="Video">
+                <div className="stage__remote">
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className={status === "connected" ? "is-live" : ""}
+                  />
+                  {status !== "connected" && (
+                    <div className="stage__empty">
+                      <p>{statusLabel(status, mode)}</p>
+                    </div>
+                  )}
+                  {status === "connected" && (
+                    <span className="stage__label">Stranger</span>
+                  )}
+                </div>
 
-              <div className={`stage__self ${camOn ? "" : "is-off"}`}>
-                <video ref={localVideoRef} autoPlay playsInline muted />
-                {!camOn && <span className="stage__self-off">Camera off</span>}
-                <span className="stage__label stage__label--self">You</span>
-              </div>
-            </section>
+                <div className={`stage__self ${camOn ? "" : "is-off"}`}>
+                  <video ref={localVideoRef} autoPlay playsInline muted />
+                  {!camOn && <span className="stage__self-off">Camera off</span>}
+                  <span className="stage__label stage__label--self">You</span>
+                </div>
+              </section>
+            )}
 
             <aside className="chat" aria-label="Chat">
+              {isText && (
+                <div className="chat__banner">
+                  {status === "searching"
+                    ? "Finding a stranger to text…"
+                    : paired
+                      ? "Text chat with a stranger"
+                      : "Stranger left — hit New"}
+                </div>
+              )}
+
               <div className="chat__log">
                 {messages.length === 0 && (
-                  <p className="chat__empty">Chat will show up here.</p>
+                  <p className="chat__empty">
+                    {isText
+                      ? "Messages will show up here."
+                      : "Chat will show up here."}
+                  </p>
                 )}
                 {messages.map((m) => (
                   <p key={m.id} className={`msg msg--${m.from}`}>
@@ -312,6 +347,7 @@ export default function App() {
 
               <form className="chat__composer" onSubmit={handleSend}>
                 <input
+                  ref={chatInputRef}
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -328,39 +364,59 @@ export default function App() {
           </div>
 
           <footer className="dock">
-            <button
-              type="button"
-              className={`dock__btn ${micOn ? "" : "is-off"}`}
-              onClick={toggleMic}
-              aria-label={micOn ? "Mute" : "Unmute"}
-            >
-              <IconMic on={micOn} />
-            </button>
-            <button
-              type="button"
-              className={`dock__btn ${camOn ? "" : "is-off"}`}
-              onClick={toggleCam}
-              aria-label={camOn ? "Camera off" : "Camera on"}
-            >
-              <IconCam on={camOn} />
-            </button>
+            {!isText && (
+              <>
+                <button
+                  type="button"
+                  className={`dock__btn ${micOn ? "" : "is-off"}`}
+                  onClick={toggleMic}
+                  aria-label={micOn ? "Mute" : "Unmute"}
+                >
+                  <IconMic on={micOn} />
+                </button>
+                <button
+                  type="button"
+                  className={`dock__btn ${camOn ? "" : "is-off"}`}
+                  onClick={toggleCam}
+                  aria-label={camOn ? "Camera off" : "Camera on"}
+                >
+                  <IconCam on={camOn} />
+                </button>
+              </>
+            )}
 
             {(status === "connected" || status === "connecting" || paired) && (
-              <button type="button" className="dock__btn dock__btn--main" onClick={next}>
+              <button
+                type="button"
+                className="dock__btn dock__btn--main"
+                onClick={next}
+              >
                 Next
               </button>
             )}
             {status === "searching" && !paired && (
-              <button type="button" className="dock__btn dock__btn--main" disabled>
+              <button
+                type="button"
+                className="dock__btn dock__btn--main"
+                disabled
+              >
                 Looking…
               </button>
             )}
             {status === "idle" && !paired && (
-              <button type="button" className="dock__btn dock__btn--main" onClick={start}>
+              <button
+                type="button"
+                className="dock__btn dock__btn--main"
+                onClick={() => start(mode)}
+              >
                 New
               </button>
             )}
-            <button type="button" className="dock__btn dock__btn--stop" onClick={handleStop}>
+            <button
+              type="button"
+              className="dock__btn dock__btn--stop"
+              onClick={handleStop}
+            >
               Stop
             </button>
           </footer>

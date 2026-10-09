@@ -47,9 +47,11 @@ export function useBmegle() {
   const [camOn, setCamOn] = useState(true);
   const [locationBlocked, setLocationBlocked] = useState(false);
   const [paired, setPaired] = useState(false);
+  const [mode, setMode] = useState("video"); // text | video
 
   const socketRef = useRef(null);
   const coordsRef = useRef(null);
+  const modeRef = useRef("video");
   const pcRef = useRef(null);
   const dcRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -62,6 +64,12 @@ export function useBmegle() {
   const setPairedState = useCallback((value) => {
     pairedRef.current = value;
     setPaired(value);
+  }, []);
+
+  const setModeState = useCallback((value) => {
+    const next = value === "text" ? "text" : "video";
+    modeRef.current = next;
+    setMode(next);
   }, []);
 
   const cleanupPeer = useCallback(() => {
@@ -89,6 +97,15 @@ export function useBmegle() {
     makingOfferRef.current = false;
   }, []);
 
+  const stopMedia = useCallback(() => {
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    localStreamRef.current = null;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    setMediaReady(false);
+  }, []);
+
   const attachLocalPreview = useCallback(() => {
     if (localVideoRef.current && localStreamRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
@@ -112,7 +129,7 @@ export function useBmegle() {
       return stream;
     } catch {
       setError(
-        "Camera/mic access is required. Allow permissions and try again."
+        "Camera/mic access is required for video chat. Allow permissions and try again."
       );
       throw new Error("media-denied");
     }
@@ -195,9 +212,11 @@ export function useBmegle() {
   const createPeerRef = useRef(createPeer);
   const cleanupPeerRef = useRef(cleanupPeer);
   const setPairedStateRef = useRef(setPairedState);
+  const setModeStateRef = useRef(setModeState);
   createPeerRef.current = createPeer;
   cleanupPeerRef.current = cleanupPeer;
   setPairedStateRef.current = setPairedState;
+  setModeStateRef.current = setModeState;
 
   useEffect(() => {
     const socket = io(SOCKET_URL, { autoConnect: true });
@@ -205,22 +224,35 @@ export function useBmegle() {
 
     socket.on("online", ({ count }) => setOnline(count));
 
-    socket.on("searching", () => {
+    socket.on("searching", (payload) => {
       setPairedStateRef.current(false);
+      if (payload?.mode) setModeStateRef.current(payload.mode);
       setStatus("searching");
       setMessages([]);
     });
 
-    socket.on("matched", async ({ role }) => {
+    socket.on("matched", async ({ role, mode: matchedMode }) => {
+      const nextMode = matchedMode === "text" ? "text" : "video";
+      setModeStateRef.current(nextMode);
       setPairedStateRef.current(true);
-      setStatus("connecting");
       setMessages([
         {
           id: crypto.randomUUID(),
           from: "system",
-          text: "You're connected. Say hi.",
+          text:
+            nextMode === "text"
+              ? "You're connected with a stranger. Say hi."
+              : "You're connected. Say hi.",
         },
       ]);
+
+      if (nextMode === "text") {
+        cleanupPeerRef.current();
+        setStatus("connected");
+        return;
+      }
+
+      setStatus("connecting");
       try {
         await createPeerRef.current(role);
       } catch (e) {
@@ -229,6 +261,7 @@ export function useBmegle() {
     });
 
     socket.on("signal", async ({ description, candidate }) => {
+      if (modeRef.current === "text") return;
       const pc = pcRef.current;
       if (!pc) return;
       try {
@@ -266,9 +299,7 @@ export function useBmegle() {
             : "";
       const from = payload?.from === "you" ? "you" : "stranger";
       const cleaned = text.trim();
-      if (!cleaned) return;
-      // Own messages are added optimistically; ignore server echo if present.
-      if (from === "you") return;
+      if (!cleaned || from === "you") return;
       pushMessage(setMessages, "stranger", cleaned);
     });
 
@@ -310,24 +341,41 @@ export function useBmegle() {
     attachLocalPreview();
   }, [attachLocalPreview, mediaReady, status]);
 
-  const start = useCallback(async () => {
-    try {
-      await ensureMedia();
-      setPairedState(false);
-      socketRef.current?.emit("find", coordsRef.current || undefined);
-      setStatus("searching");
-      setMessages([]);
-    } catch {
-      /* error already set */
-    }
-  }, [ensureMedia, setPairedState]);
+  const start = useCallback(
+    async (nextMode = "video") => {
+      const modeToUse = nextMode === "text" ? "text" : "video";
+      try {
+        setModeState(modeToUse);
+        setPairedState(false);
+        setError(null);
+
+        if (modeToUse === "video") {
+          await ensureMedia();
+        } else {
+          cleanupPeer();
+          stopMedia();
+        }
+
+        const payload = {
+          mode: modeToUse,
+          ...(coordsRef.current || {}),
+        };
+        socketRef.current?.emit("find", payload);
+        setStatus("searching");
+        setMessages([]);
+      } catch {
+        /* error already set for video */
+      }
+    },
+    [cleanupPeer, ensureMedia, setModeState, setPairedState, stopMedia]
+  );
 
   const next = useCallback(() => {
     cleanupPeer();
     setPairedState(false);
     setMessages([]);
     setStatus("searching");
-    socketRef.current?.emit("next");
+    socketRef.current?.emit("next", { mode: modeRef.current });
   }, [cleanupPeer, setPairedState]);
 
   const setCoords = useCallback((lat, lon) => {
@@ -349,13 +397,16 @@ export function useBmegle() {
 
     pushMessage(setMessages, "you", trimmed);
 
-    const dc = dcRef.current;
-    if (dc && dc.readyState === "open") {
-      try {
-        dc.send(JSON.stringify({ type: "chat", text: trimmed }));
-        return;
-      } catch (e) {
-        console.error("datachannel send failed", e);
+    // Text mode always uses the socket. Video prefers datachannel when open.
+    if (modeRef.current === "video") {
+      const dc = dcRef.current;
+      if (dc && dc.readyState === "open") {
+        try {
+          dc.send(JSON.stringify({ type: "chat", text: trimmed }));
+          return;
+        } catch (e) {
+          console.error("datachannel send failed", e);
+        }
       }
     }
 
@@ -386,6 +437,7 @@ export function useBmegle() {
     camOn,
     locationBlocked,
     paired,
+    mode,
     localVideoRef,
     remoteVideoRef,
     start,

@@ -49,7 +49,6 @@ app.get("/api/location", async (req, res) => {
     });
   } catch (err) {
     console.error("location check failed", err.message);
-    // Fail closed in production so outsiders aren't waved through on API errors.
     res.status(200).json({
       allowed: !isProd,
       restricted: restrictionEnabled(),
@@ -69,22 +68,30 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
 });
 
-/** @type {string[]} */
-let waitingQueue = [];
+/** @type {{ text: string[], video: string[] }} */
+const waitingQueue = { text: [], video: [] };
 /** @type {Map<string, string>} */
 const partners = new Map();
 /** @type {Map<string, boolean>} */
 const allowedSockets = new Map();
+/** @type {Map<string, 'text' | 'video'>} */
+const modes = new Map();
+
+function normalizeMode(value) {
+  return value === "text" ? "text" : "video";
+}
 
 function getPartner(id) {
   return partners.get(id) || null;
 }
 
-function pairUsers(a, b) {
+function pairUsers(a, b, mode) {
   partners.set(a, b);
   partners.set(b, a);
-  io.to(a).emit("matched", { partnerId: b, role: "caller" });
-  io.to(b).emit("matched", { partnerId: a, role: "callee" });
+  modes.set(a, mode);
+  modes.set(b, mode);
+  io.to(a).emit("matched", { partnerId: b, role: "caller", mode });
+  io.to(b).emit("matched", { partnerId: a, role: "callee", mode });
 }
 
 function unpair(id) {
@@ -98,22 +105,29 @@ function unpair(id) {
 }
 
 function removeFromQueue(id) {
-  waitingQueue = waitingQueue.filter((x) => x !== id);
+  waitingQueue.text = waitingQueue.text.filter((x) => x !== id);
+  waitingQueue.video = waitingQueue.video.filter((x) => x !== id);
 }
 
-function tryMatch(socketId) {
+function tryMatch(socketId, mode) {
+  const queueMode = normalizeMode(mode);
   removeFromQueue(socketId);
-  while (waitingQueue.length > 0) {
-    const other = waitingQueue.shift();
+  const queue = waitingQueue[queueMode];
+
+  while (queue.length > 0) {
+    const other = queue.shift();
     if (other === socketId) continue;
     if (!io.sockets.sockets.has(other)) continue;
     if (partners.has(other)) continue;
     if (restrictionEnabled() && allowedSockets.get(other) === false) continue;
-    pairUsers(socketId, other);
+    if (modes.get(other) !== queueMode) continue;
+    pairUsers(socketId, other, queueMode);
     return;
   }
-  waitingQueue.push(socketId);
-  io.to(socketId).emit("searching");
+
+  queue.push(socketId);
+  modes.set(socketId, queueMode);
+  io.to(socketId).emit("searching", { mode: queueMode });
 }
 
 async function ensureAllowed(socket, coords) {
@@ -147,27 +161,33 @@ async function ensureAllowed(socket, coords) {
   }
 }
 
+function extractCoords(payload) {
+  if (
+    payload &&
+    typeof payload.lat === "number" &&
+    typeof payload.lon === "number"
+  ) {
+    return { lat: payload.lat, lon: payload.lon };
+  }
+  return null;
+}
+
 io.on("connection", (socket) => {
   socket.emit("online", { count: io.engine.clientsCount });
   io.emit("online", { count: io.engine.clientsCount });
 
-  // Warm the geo check early.
   ensureAllowed(socket).catch(() => {});
 
   socket.on("find", async (payload) => {
     if (partners.has(socket.id)) return;
-    const coords =
-      payload &&
-      typeof payload.lat === "number" &&
-      typeof payload.lon === "number"
-        ? { lat: payload.lat, lon: payload.lon }
-        : null;
+    const mode = normalizeMode(payload?.mode);
+    const coords = extractCoords(payload);
     const ok = await ensureAllowed(socket, coords);
     if (!ok) return;
-    tryMatch(socket.id);
+    tryMatch(socket.id, mode);
   });
 
-  socket.on("next", async () => {
+  socket.on("next", async (payload) => {
     const partner = unpair(socket.id);
     if (partner) {
       io.to(partner).emit("partner-left");
@@ -175,7 +195,8 @@ io.on("connection", (socket) => {
     removeFromQueue(socket.id);
     const ok = await ensureAllowed(socket);
     if (!ok) return;
-    tryMatch(socket.id);
+    const mode = normalizeMode(payload?.mode || modes.get(socket.id));
+    tryMatch(socket.id, mode);
   });
 
   socket.on("stop", () => {
@@ -184,12 +205,14 @@ io.on("connection", (socket) => {
       io.to(partner).emit("partner-left");
     }
     removeFromQueue(socket.id);
+    modes.delete(socket.id);
     socket.emit("stopped");
   });
 
   socket.on("signal", ({ description, candidate }) => {
     const partner = getPartner(socket.id);
     if (!partner) return;
+    if (modes.get(socket.id) === "text") return;
     io.to(partner).emit("signal", { description, candidate });
   });
 
@@ -206,7 +229,6 @@ io.on("connection", (socket) => {
     const text = raw.trim().slice(0, 500);
     if (!text) return;
 
-    // Deliver only to the partner; sender adds their own message in the UI.
     io.to(partner).emit("chat", { text, from: "stranger" });
   });
 
@@ -217,6 +239,7 @@ io.on("connection", (socket) => {
     }
     removeFromQueue(socket.id);
     allowedSockets.delete(socket.id);
+    modes.delete(socket.id);
     io.emit("online", { count: Math.max(0, io.engine.clientsCount) });
   });
 });
