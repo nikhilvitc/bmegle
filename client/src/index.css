@@ -573,6 +573,61 @@ button {
   color: #fff;
 }
 
+.dock__btn--report {
+  background: var(--pink);
+}
+
+.report-panel {
+  border: var(--border);
+  box-shadow: var(--shadow);
+  background: var(--panel);
+  padding: 0.75rem;
+}
+
+.report-panel__title {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+.report-panel__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.report-panel__btn {
+  border: var(--border);
+  border-radius: 0;
+  padding: 0.45rem 0.65rem;
+  background: var(--yellow);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.report-panel__btn:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.report-panel__cancel {
+  margin-top: 0.65rem;
+  border: var(--border);
+  border-radius: 0;
+  padding: 0.4rem 0.65rem;
+  background: var(--panel);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .session__error {
   position: fixed;
   left: 50%;

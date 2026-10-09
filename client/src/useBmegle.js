@@ -46,8 +46,10 @@ export function useBmegle() {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [locationBlocked, setLocationBlocked] = useState(false);
+  const [moderationBlocked, setModerationBlocked] = useState(false);
   const [paired, setPaired] = useState(false);
   const [mode, setMode] = useState("video"); // text | video
+  const [canReport, setCanReport] = useState(false);
 
   const socketRef = useRef(null);
   const coordsRef = useRef(null);
@@ -226,6 +228,7 @@ export function useBmegle() {
 
     socket.on("searching", (payload) => {
       setPairedStateRef.current(false);
+      setCanReport(false);
       if (payload?.mode) setModeStateRef.current(payload.mode);
       setStatus("searching");
       setMessages([]);
@@ -235,6 +238,7 @@ export function useBmegle() {
       const nextMode = matchedMode === "text" ? "text" : "video";
       setModeStateRef.current(nextMode);
       setPairedStateRef.current(true);
+      setCanReport(true);
       setMessages([
         {
           id: crypto.randomUUID(),
@@ -306,6 +310,7 @@ export function useBmegle() {
     socket.on("partner-left", () => {
       cleanupPeerRef.current();
       setPairedStateRef.current(false);
+      setCanReport(false);
       setStatus("idle");
       pushMessage(setMessages, "system", "Stranger disconnected.");
     });
@@ -313,14 +318,49 @@ export function useBmegle() {
     socket.on("stopped", () => {
       cleanupPeerRef.current();
       setPairedStateRef.current(false);
+      setCanReport(false);
       setStatus("idle");
+    });
+
+    socket.on("report-ok", () => {
+      cleanupPeerRef.current();
+      setPairedStateRef.current(false);
+      setCanReport(false);
+      setStatus("searching");
+      setMessages([
+        {
+          id: crypto.randomUUID(),
+          from: "system",
+          text: "Reported. Looking for someone else…",
+        },
+      ]);
+    });
+
+    socket.on("report-error", ({ error: code }) => {
+      if (code === "cooldown") {
+        setError("Wait a moment before reporting again.");
+      } else if (code === "already-reported") {
+        setError("You already reported this stranger.");
+      } else if (code === "no-partner") {
+        setError("No stranger to report.");
+      }
     });
 
     socket.on("location-blocked", ({ message }) => {
       setLocationBlocked(true);
       setPairedStateRef.current(false);
+      setCanReport(false);
       setStatus("idle");
       setError(message || "bmegle is only available in Bengaluru.");
+      cleanupPeerRef.current();
+    });
+
+    socket.on("moderation-blocked", ({ message }) => {
+      setModerationBlocked(true);
+      setPairedStateRef.current(false);
+      setCanReport(false);
+      setStatus("idle");
+      setError(message || "Temporarily unavailable. Try again later.");
       cleanupPeerRef.current();
     });
 
@@ -413,6 +453,12 @@ export function useBmegle() {
     socketRef.current?.emit("chat", trimmed);
   }, []);
 
+  const report = useCallback((reason) => {
+    if (!pairedRef.current || !socketRef.current) return;
+    setCanReport(false);
+    socketRef.current.emit("report", { reason });
+  }, []);
+
   const toggleMic = useCallback(() => {
     const track = localStreamRef.current?.getAudioTracks()[0];
     if (!track) return;
@@ -436,7 +482,9 @@ export function useBmegle() {
     micOn,
     camOn,
     locationBlocked,
+    moderationBlocked,
     paired,
+    canReport,
     mode,
     localVideoRef,
     remoteVideoRef,
@@ -444,6 +492,7 @@ export function useBmegle() {
     next,
     stop,
     sendChat,
+    report,
     toggleMic,
     toggleCam,
     setCoords,

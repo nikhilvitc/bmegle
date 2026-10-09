@@ -8,6 +8,12 @@ const {
   checkBangaloreAccess,
   restrictionEnabled,
 } = require("./geo");
+const {
+  isBanned,
+  recordReport,
+  clearReporterSession,
+  normalizeReason,
+} = require("./moderation");
 
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
@@ -121,6 +127,8 @@ function tryMatch(socketId, mode) {
     if (partners.has(other)) continue;
     if (restrictionEnabled() && allowedSockets.get(other) === false) continue;
     if (modes.get(other) !== queueMode) continue;
+    const otherSocket = io.sockets.sockets.get(other);
+    if (otherSocket && isBanned(getClientIp(otherSocket))) continue;
     pairUsers(socketId, other, queueMode);
     return;
   }
@@ -130,12 +138,39 @@ function tryMatch(socketId, mode) {
   io.to(socketId).emit("searching", { mode: queueMode });
 }
 
+function emitModerationBlocked(socket) {
+  socket.emit("moderation-blocked", {
+    message: "Temporarily unavailable. Try again later.",
+  });
+}
+
+function checkNotBanned(socket) {
+  const ip = getClientIp(socket);
+  if (isBanned(ip)) {
+    emitModerationBlocked(socket);
+    return false;
+  }
+  return true;
+}
+
 async function ensureAllowed(socket, coords) {
+  if (!checkNotBanned(socket)) {
+    allowedSockets.set(socket.id, false);
+    return false;
+  }
+
   if (!restrictionEnabled()) {
     allowedSockets.set(socket.id, true);
     return true;
   }
-  if (allowedSockets.get(socket.id) === true && !coords) return true;
+  if (allowedSockets.get(socket.id) === true && !coords) {
+    // Still re-check ban even if geo already passed.
+    if (!checkNotBanned(socket)) {
+      allowedSockets.set(socket.id, false);
+      return false;
+    }
+    return true;
+  }
 
   const ip = getClientIp(socket);
   try {
@@ -232,6 +267,45 @@ io.on("connection", (socket) => {
     io.to(partner).emit("chat", { text, from: "stranger" });
   });
 
+  socket.on("report", (payload) => {
+    const partnerId = getPartner(socket.id);
+    if (!partnerId) {
+      socket.emit("report-error", { error: "no-partner" });
+      return;
+    }
+
+    const partnerSocket = io.sockets.sockets.get(partnerId);
+    const reportedIp = partnerSocket ? getClientIp(partnerSocket) : "unknown";
+    const mode = modes.get(socket.id) || "video";
+    const reason = normalizeReason(payload?.reason);
+
+    const result = recordReport({
+      reason,
+      reporterId: socket.id,
+      reportedId: partnerId,
+      reportedIp,
+      mode,
+    });
+
+    if (!result.ok) {
+      socket.emit("report-error", { error: result.error });
+      return;
+    }
+
+    unpair(socket.id);
+    removeFromQueue(socket.id);
+    removeFromQueue(partnerId);
+
+    // Reported user just sees a normal disconnect.
+    io.to(partnerId).emit("partner-left");
+
+    socket.emit("report-ok", { reason });
+
+    // Auto rematch reporter in the same mode.
+    if (!checkNotBanned(socket)) return;
+    tryMatch(socket.id, mode);
+  });
+
   socket.on("disconnect", () => {
     const partner = unpair(socket.id);
     if (partner) {
@@ -240,6 +314,7 @@ io.on("connection", (socket) => {
     removeFromQueue(socket.id);
     allowedSockets.delete(socket.id);
     modes.delete(socket.id);
+    clearReporterSession(socket.id);
     io.emit("online", { count: Math.max(0, io.engine.clientsCount) });
   });
 });

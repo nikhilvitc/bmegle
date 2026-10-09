@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useBmegle } from "./useBmegle";
 
+const REPORT_REASONS = [
+  { id: "inappropriate", label: "Inappropriate" },
+  { id: "spam", label: "Spam" },
+  { id: "harassment", label: "Harassment" },
+  { id: "underage", label: "Underage" },
+  { id: "other", label: "Other" },
+];
+
 function statusLabel(status, mode) {
   switch (status) {
     case "searching":
@@ -87,7 +95,9 @@ export default function App() {
     micOn,
     camOn,
     locationBlocked,
+    moderationBlocked,
     paired,
+    canReport,
     mode,
     localVideoRef,
     remoteVideoRef,
@@ -95,6 +105,7 @@ export default function App() {
     next,
     stop,
     sendChat,
+    report,
     toggleMic,
     toggleCam,
     setCoords,
@@ -104,10 +115,12 @@ export default function App() {
   const [started, setStarted] = useState(false);
   const [geoStatus, setGeoStatus] = useState("checking");
   const [geoMessage, setGeoMessage] = useState("");
+  const [showReportReasons, setShowReportReasons] = useState(false);
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
   const canChat = paired;
-  const blocked = geoStatus === "blocked" || locationBlocked;
+  const blocked =
+    geoStatus === "blocked" || locationBlocked || moderationBlocked;
   const isText = mode === "text";
 
   useEffect(() => {
@@ -119,6 +132,10 @@ export default function App() {
       chatInputRef.current?.focus();
     }
   }, [started, isText, canChat, paired]);
+
+  useEffect(() => {
+    if (!paired) setShowReportReasons(false);
+  }, [paired]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,7 +212,13 @@ export default function App() {
 
   const handleStop = () => {
     stop();
+    setShowReportReasons(false);
     setStarted(false);
+  };
+
+  const handleReport = (reasonId) => {
+    report(reasonId);
+    setShowReportReasons(false);
   };
 
   return (
@@ -363,6 +386,31 @@ export default function App() {
             </aside>
           </div>
 
+          {showReportReasons && paired && (
+            <div className="report-panel" role="group" aria-label="Report reason">
+              <p className="report-panel__title">Why report?</p>
+              <div className="report-panel__reasons">
+                {REPORT_REASONS.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className="report-panel__btn"
+                    onClick={() => handleReport(r.id)}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="report-panel__cancel"
+                onClick={() => setShowReportReasons(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
           <footer className="dock">
             {!isText && (
               <>
@@ -384,6 +432,15 @@ export default function App() {
                 </button>
               </>
             )}
+
+            <button
+              type="button"
+              className="dock__btn dock__btn--report"
+              onClick={() => setShowReportReasons(true)}
+              disabled={!canReport || !paired}
+            >
+              Report
+            </button>
 
             {(status === "connected" || status === "connecting" || paired) && (
               <button
