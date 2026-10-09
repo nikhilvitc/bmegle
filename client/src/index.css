@@ -123,11 +123,60 @@ button {
   padding: 1.1rem 1.15rem 1.35rem;
 }
 
+.home__title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 3.2vw, 1.55rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
 .home__copy,
 .home__age {
   margin: 0 0 0.9rem;
   font-size: 0.92rem;
   line-height: 1.55;
+}
+
+.home__seo {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem 1.15rem;
+  background: var(--panel);
+  border: var(--border);
+  box-shadow: var(--shadow);
+}
+
+.home__seo h2 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.home__seo ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.15rem;
+}
+
+.home__seo li {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.home__seo li strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.home__seo p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .home__copy strong,

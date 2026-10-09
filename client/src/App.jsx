@@ -228,7 +228,7 @@ export default function App() {
           <header className="home__header">
             <img
               src="/logo.png"
-              alt="bmegle"
+              alt="bmegle logo"
               className="home__logo"
               width="160"
               height="160"
@@ -240,7 +240,7 @@ export default function App() {
             <div className="home__hero">
               <img
                 src="/hero.jpg"
-                alt="bmegle"
+                alt="People connecting through random chat in Bengaluru"
                 className="home__hero-img"
                 width="1400"
                 height="788"
@@ -248,8 +248,12 @@ export default function App() {
             </div>
 
             <div className="home__body">
+              <h1 className="home__title">
+                bmegle — random video & text chat for Bengaluru
+              </h1>
+
               <p className="home__copy">
-                <strong>bmegle</strong> is a simple way to meet people in
+                <strong>bmegle</strong> is a free random chat for people in
                 Bengaluru. Pick text chat (no camera) or video chat. You’re
                 randomly paired one-on-one. Stop or skip whenever you want.
               </p>
@@ -290,6 +294,32 @@ export default function App() {
 
               {error && <p className="home__error">{error}</p>}
             </div>
+          </section>
+
+          <section className="home__seo" aria-labelledby="how-heading">
+            <h2 id="how-heading">How bmegle works</h2>
+            <ul>
+              <li>
+                <strong>Text chat</strong> — message strangers without turning
+                on your camera.
+              </li>
+              <li>
+                <strong>Video chat</strong> — one-on-one WebRTC video with a
+                random person in Bengaluru.
+              </li>
+              <li>
+                <strong>Next / Stop</strong> — skip to someone new or leave
+                whenever you want.
+              </li>
+              <li>
+                <strong>Report</strong> — flag inappropriate behavior; repeat
+                offenders can be temporarily blocked.
+              </li>
+            </ul>
+            <p>
+              Looking for an Omegle-style chat limited to Bangalore? bmegle keeps
+              matching local so conversations stay closer to home.
+            </p>
           </section>
 
           <footer className="home__footer">
