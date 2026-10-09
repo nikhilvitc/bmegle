@@ -215,38 +215,40 @@ export default function App() {
               />
             </div>
 
-            <p className="home__copy">
-              <strong>bmegle</strong> is a simple way to meet people in Bengaluru.
-              You get randomly paired for one-on-one video and text chat. No app —
-              just use this site. You’ll need camera and mic access. Stop or skip
-              whenever you want.
-            </p>
-
-            <p className="home__age">
-              <strong>18+ only.</strong> By clicking Video, you confirm you are 18
-              or older. Bengaluru only.
-            </p>
-
-            {blocked && (
-              <p className="home__blocked">
-                {geoMessage || "bmegle is only available in Bengaluru."}
+            <div className="home__body">
+              <p className="home__copy">
+                <strong>bmegle</strong> is a simple way to meet people in
+                Bengaluru. You get randomly paired for one-on-one video and text
+                chat. No app — just use this site. You’ll need camera and mic
+                access. Stop or skip whenever you want.
               </p>
-            )}
 
-            <div className="home__start">
-              <p className="home__start-label">Start chatting:</p>
-              <button
-                type="button"
-                className="btn-video"
-                onClick={handleStart}
-                disabled={blocked || geoStatus === "checking"}
-              >
-                {geoStatus === "checking" ? "Checking…" : "Video"}
-              </button>
-              <p className="home__online">{online} online</p>
+              <p className="home__age">
+                <strong>18+ only.</strong> By clicking Video, you confirm you are
+                18 or older. Bengaluru only.
+              </p>
+
+              {blocked && (
+                <p className="home__blocked">
+                  {geoMessage || "bmegle is only available in Bengaluru."}
+                </p>
+              )}
+
+              <div className="home__start">
+                <p className="home__start-label">Start chatting:</p>
+                <button
+                  type="button"
+                  className="btn-video"
+                  onClick={handleStart}
+                  disabled={blocked || geoStatus === "checking"}
+                >
+                  {geoStatus === "checking" ? "Checking…" : "Video"}
+                </button>
+                <p className="home__online">{online} online</p>
+              </div>
+
+              {error && <p className="home__error">{error}</p>}
             </div>
-
-            {error && <p className="home__error">{error}</p>}
           </section>
 
           <footer className="home__footer">
