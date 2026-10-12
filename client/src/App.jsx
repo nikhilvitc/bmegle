@@ -252,12 +252,6 @@ export default function App() {
                 bmegle — random video & text chat for Bengaluru
               </h1>
 
-              <p className="home__copy">
-                <strong>bmegle</strong> is a free random chat for people in
-                Bengaluru. Pick text chat (no camera) or video chat. You’re
-                randomly paired one-on-one. Stop or skip whenever you want.
-              </p>
-
               <p className="home__age">
                 <strong>18+ only.</strong> By starting, you confirm you are 18 or
                 older. Bengaluru only.
@@ -293,6 +287,12 @@ export default function App() {
               </div>
 
               {error && <p className="home__error">{error}</p>}
+
+              <p className="home__copy">
+                <strong>bmegle</strong> is a free random chat for people in
+                Bengaluru. Pick text chat (no camera) or video chat. You’re
+                randomly paired one-on-one. Stop or skip whenever you want.
+              </p>
             </div>
           </section>
 
@@ -338,7 +338,10 @@ export default function App() {
             />
             <p className="session__status">{statusLabel(status, mode)}</p>
             <span className="session__mode">{isText ? "Text" : "Video"}</span>
-            <span className="session__online">{online} online</span>
+            <span className="session__online" title={`${online} online`}>
+              {online}
+              <span className="session__online-label"> online</span>
+            </span>
           </header>
 
           <div className="session__body">
@@ -487,7 +490,7 @@ export default function App() {
                 className="dock__btn dock__btn--main"
                 disabled
               >
-                Looking…
+                Next
               </button>
             )}
             {status === "idle" && !paired && (
