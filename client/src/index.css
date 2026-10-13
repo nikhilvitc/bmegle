@@ -69,6 +69,14 @@ input:focus-visible {
   overflow: auto;
 }
 
+.remote-audio {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .app--session {
   position: fixed;
   inset: 0;

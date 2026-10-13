@@ -30,6 +30,9 @@ function getPeerConfig() {
   };
 }
 
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
   (import.meta.env.PROD ? undefined : "http://localhost:3001");
@@ -63,6 +66,7 @@ export function useBmegle() {
   const localStreamRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const roleRef = useRef(null);
   const makingOfferRef = useRef(false);
   const pairedRef = useRef(false);
@@ -107,6 +111,9 @@ export function useBmegle() {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
     }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
     roleRef.current = null;
     makingOfferRef.current = false;
     pendingSignalsRef.current = [];
@@ -137,26 +144,44 @@ export function useBmegle() {
     el.play?.().catch(() => {});
   }, []);
 
+  const playRemoteAudio = useCallback(() => {
+    const el = remoteAudioRef.current;
+    if (!el) return;
+    el.muted = false;
+    const result = el.play();
+    if (!result || typeof result.then !== "function") {
+      setPlaybackBlocked(false);
+      return;
+    }
+    result
+      .then(() => setPlaybackBlocked(false))
+      .catch(() => setPlaybackBlocked(true));
+  }, []);
+
   const playRemote = useCallback(() => {
     const el = remoteVideoRef.current;
     if (!el || !el.srcObject) return;
+    // Keep the picture muted so the phone will show it. Voice plays separately.
+    el.muted = true;
+    el.play?.().catch(() => {});
+    playRemoteAudio();
+  }, [playRemoteAudio]);
 
-    const start = (muted) => {
-      el.muted = muted;
-      const result = el.play();
-      if (!result || typeof result.then !== "function") {
-        setPlaybackBlocked(false);
-        return;
+  const unlockRemoteAudio = useCallback(() => {
+    const el = remoteAudioRef.current;
+    if (!el) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      try {
+        const ctx = new Ctx();
+        ctx.resume().catch(() => {});
+      } catch {
+        /* ignore */
       }
-      result
-        .then(() => setPlaybackBlocked(muted))
-        .catch(() => {
-          if (!muted) start(true);
-          else setPlaybackBlocked(true);
-        });
-    };
-
-    start(false);
+    }
+    if (!el.srcObject) el.src = SILENT_WAV;
+    el.muted = false;
+    el.play?.().catch(() => {});
   }, []);
 
   const markVideoLive = useCallback(() => {
@@ -177,23 +202,25 @@ export function useBmegle() {
   }, [playRemote]);
 
   const resumeRemote = useCallback(() => {
-    const el = remoteVideoRef.current;
-    if (!el) return;
-    el.muted = false;
-    const result = el.play();
-    if (!result || typeof result.then !== "function") {
-      setPlaybackBlocked(false);
-      return;
-    }
-    result
-      .then(() => setPlaybackBlocked(false))
-      .catch(() => {
-        el.muted = true;
-        el.play?.()
-          .then(() => setPlaybackBlocked(true))
-          .catch(() => setPlaybackBlocked(true));
-      });
-  }, []);
+    playRemoteAudio();
+  }, [playRemoteAudio]);
+
+  const attachRemoteAudio = useCallback(
+    (track) => {
+      const el = remoteAudioRef.current;
+      if (!el || !track || track.kind !== "audio") return;
+      let stream = el.srcObject;
+      if (!(stream instanceof MediaStream)) stream = new MediaStream();
+      if (!stream.getTracks().some((item) => item.id === track.id)) {
+        stream.addTrack(track);
+      }
+      el.removeAttribute("src");
+      el.srcObject = stream;
+      el.muted = false;
+      playRemoteAudio();
+    },
+    [playRemoteAudio]
+  );
 
   const showRemoteStream = useCallback((el, stream, track) => {
     if (!el || !stream) return;
@@ -215,7 +242,9 @@ export function useBmegle() {
     (track, inboundStream) => {
       const el = remoteVideoRef.current;
       if (!el || !track) return;
+      if (track.kind === "audio") attachRemoteAudio(track);
       if (inboundStream) {
+        inboundStream.getAudioTracks().forEach(attachRemoteAudio);
         showRemoteStream(el, inboundStream, track);
         return;
       }
@@ -228,7 +257,7 @@ export function useBmegle() {
       }
       showRemoteStream(el, stream, track);
     },
-    [showRemoteStream]
+    [attachRemoteAudio, showRemoteStream]
   );
 
   const ensureMedia = useCallback(async () => {
@@ -624,6 +653,7 @@ export function useBmegle() {
         setModeState(modeToUse);
         setPairedState(false);
         setError(null);
+        if (modeToUse === "video") unlockRemoteAudio();
 
         if (modeToUse === "video") {
           await ensureMedia();
@@ -643,7 +673,7 @@ export function useBmegle() {
         /* error already set for video */
       }
     },
-    [cleanupPeer, ensureMedia, setModeState, setPairedState, stopMedia]
+    [cleanupPeer, ensureMedia, setModeState, setPairedState, stopMedia, unlockRemoteAudio]
   );
 
   const next = useCallback(() => {
@@ -724,6 +754,7 @@ export function useBmegle() {
     mode,
     localVideoRef,
     remoteVideoRef,
+    remoteAudioRef,
     start,
     next,
     stop,

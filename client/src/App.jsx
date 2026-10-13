@@ -101,6 +101,7 @@ export default function App() {
     mode,
     localVideoRef,
     remoteVideoRef,
+    remoteAudioRef,
     start,
     next,
     stop,
@@ -227,6 +228,7 @@ export default function App() {
 
   return (
     <div className={`app ${started ? "app--session" : "app--home"}`}>
+      <audio ref={remoteAudioRef} autoPlay playsInline className="remote-audio" />
       {!started ? (
         <main className="home">
           <header className="home__header">
@@ -356,6 +358,7 @@ export default function App() {
                     ref={remoteVideoRef}
                     autoPlay
                     playsInline
+                    muted
                     className={status === "connected" ? "is-live" : ""}
                   />
                   {status !== "connected" && (
@@ -372,7 +375,7 @@ export default function App() {
                       className="stage__tap"
                       onClick={resumeRemote}
                     >
-                      Tap to play
+                      Tap for sound
                     </button>
                   )}
                 </div>
