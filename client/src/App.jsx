@@ -126,7 +126,9 @@ export default function App() {
   const isText = mode === "text";
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const log = chatEndRef.current?.closest(".chat__log");
+    if (!log) return;
+    log.scrollTop = log.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
