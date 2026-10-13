@@ -711,10 +711,13 @@ export function useBmegle() {
 
   const stop = useCallback(() => {
     cleanupPeer();
+    stopMedia();
+    setMicOn(true);
+    setCamOn(true);
     setPairedState(false);
     socketRef.current?.emit("stop");
     setStatus("idle");
-  }, [cleanupPeer, setPairedState]);
+  }, [cleanupPeer, setPairedState, stopMedia]);
 
   const sendChat = useCallback((text) => {
     const trimmed = text.trim().slice(0, 500);
