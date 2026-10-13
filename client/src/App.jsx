@@ -134,7 +134,7 @@ export default function App() {
 
   useEffect(() => {
     if (started && isText && canChat) {
-      chatInputRef.current?.focus();
+      chatInputRef.current?.focus({ preventScroll: true });
     }
   }, [started, isText, canChat, paired]);
 
@@ -427,6 +427,8 @@ export default function App() {
                   disabled={!canChat}
                   maxLength={500}
                   autoComplete="off"
+                  enterKeyHint="send"
+                  style={{ fontSize: 16 }}
                 />
                 <button type="submit" disabled={!draft.trim() || !canChat}>
                   Send
