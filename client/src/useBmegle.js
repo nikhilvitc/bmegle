@@ -64,7 +64,10 @@ export function useBmegle() {
   const pairedRef = useRef(false);
   const pendingSignalsRef = useRef([]);
   const pendingCandidatesRef = useRef([]);
+  const pendingAnswerRef = useRef(null);
+  const connectTimerRef = useRef(null);
   const iceRestartedRef = useRef(false);
+  const markVideoLiveRef = useRef(() => {});
   const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
   const setPairedState = useCallback((value) => {
@@ -103,6 +106,11 @@ export function useBmegle() {
     makingOfferRef.current = false;
     pendingSignalsRef.current = [];
     pendingCandidatesRef.current = [];
+    pendingAnswerRef.current = null;
+    if (connectTimerRef.current) {
+      clearTimeout(connectTimerRef.current);
+      connectTimerRef.current = null;
+    }
     iceRestartedRef.current = false;
     setPlaybackBlocked(false);
   }, []);
@@ -146,6 +154,23 @@ export function useBmegle() {
     start(false);
   }, []);
 
+  const markVideoLive = useCallback(() => {
+    if (connectTimerRef.current) {
+      clearTimeout(connectTimerRef.current);
+      connectTimerRef.current = null;
+    }
+    setStatus("connected");
+    setError(null);
+    playRemote();
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.text === "You're paired. Video is connecting."
+          ? { ...m, text: "You're connected. Say hi." }
+          : m
+      )
+    );
+  }, [playRemote]);
+
   const resumeRemote = useCallback(() => {
     const el = remoteVideoRef.current;
     if (!el) return;
@@ -178,7 +203,9 @@ export function useBmegle() {
         stream.addTrack(track);
       }
       if (track.kind === "video") {
-        track.onunmute = () => playRemote();
+        const show = () => markVideoLiveRef.current();
+        track.onunmute = show;
+        if (!track.muted) show();
       }
       playRemote();
     },
@@ -236,6 +263,11 @@ export function useBmegle() {
 
       if (offerCollision && roleRef.current === "caller") return;
 
+      if (description.type === "answer" && pc.signalingState !== "have-local-offer") {
+        pendingAnswerRef.current = description;
+        return;
+      }
+
       await pc.setRemoteDescription(description);
       const queued = pendingCandidatesRef.current.splice(0);
       for (const item of queued) {
@@ -284,14 +316,26 @@ export function useBmegle() {
         attachRemoteTrack(event.track);
       };
 
+      const noteLink = () => {
+        if (pcRef.current !== pc) return;
+        const ice = pc.iceConnectionState;
+        if (
+          ice === "connected" ||
+          ice === "completed" ||
+          pc.connectionState === "connected"
+        ) {
+          markVideoLive();
+        }
+      };
+
+      pc.oniceconnectionstatechange = noteLink;
+
       pc.onconnectionstatechange = () => {
         if (pcRef.current !== pc) return;
-        if (pc.connectionState === "connected") {
-          setStatus("connected");
-          playRemote();
+        noteLink();
+        if (pc.connectionState !== "failed" && pc.iceConnectionState !== "failed") {
           return;
         }
-        if (pc.connectionState !== "failed") return;
         if (!iceRestartedRef.current && roleRef.current === "caller") {
           iceRestartedRef.current = true;
           try {
@@ -305,22 +349,31 @@ export function useBmegle() {
         setError("Video didn't connect. Hit Next to try someone else.");
       };
 
-      pc.onnegotiationneeded = async () => {
+      const sendOffer = async () => {
+        if (roleRef.current !== "caller" || makingOfferRef.current) return;
+        if (pc.signalingState !== "stable") return;
+        makingOfferRef.current = true;
         try {
-          if (roleRef.current !== "caller") return;
-          if (pc.signalingState !== "stable") return;
-          makingOfferRef.current = true;
           const offer = await pc.createOffer();
-          if (pcRef.current !== pc) return;
+          if (pcRef.current !== pc || pc.signalingState !== "stable") return;
           await pc.setLocalDescription(offer);
           socketRef.current?.emit("signal", {
             description: pc.localDescription,
           });
+          const earlyAnswer = pendingAnswerRef.current;
+          if (earlyAnswer) {
+            pendingAnswerRef.current = null;
+            await applySignal(pc, { description: earlyAnswer });
+          }
         } catch (e) {
           console.error(e);
         } finally {
           makingOfferRef.current = false;
         }
+      };
+
+      pc.onnegotiationneeded = () => {
+        sendOffer();
       };
 
       stream.getTracks().forEach((track) => {
@@ -348,9 +401,27 @@ export function useBmegle() {
         }
       }
 
+      if (role === "caller" && !pc.localDescription) {
+        await sendOffer();
+      }
+
+      connectTimerRef.current = setTimeout(() => {
+        if (pcRef.current !== pc) return;
+        const ice = pc.iceConnectionState;
+        if (
+          ice === "connected" ||
+          ice === "completed" ||
+          pc.connectionState === "connected"
+        ) {
+          markVideoLive();
+          return;
+        }
+        setError("Video didn't connect. Hit Next to try someone else.");
+      }, 15000);
+
       return pc;
     },
-    [applySignal, attachRemoteTrack, cleanupPeer, ensureMedia, playRemote, wireDataChannel]
+    [applySignal, attachRemoteTrack, cleanupPeer, ensureMedia, markVideoLive, wireDataChannel]
   );
 
   const createPeerRef = useRef(createPeer);
@@ -361,6 +432,7 @@ export function useBmegle() {
   createPeerRef.current = createPeer;
   cleanupPeerRef.current = cleanupPeer;
   applySignalRef.current = applySignal;
+  markVideoLiveRef.current = markVideoLive;
   setPairedStateRef.current = setPairedState;
   setModeStateRef.current = setModeState;
 
