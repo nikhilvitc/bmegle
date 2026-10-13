@@ -474,6 +474,25 @@ input:focus-visible {
   margin: 0;
 }
 
+.stage__tap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  border: var(--border);
+  background: var(--yellow);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  padding: 0.8rem 1rem;
+  min-height: 48px;
+}
+
 .stage__label {
   position: absolute;
   left: 0;

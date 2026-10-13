@@ -109,6 +109,8 @@ export default function App() {
     toggleMic,
     toggleCam,
     setCoords,
+    playbackBlocked,
+    resumeRemote,
   } = useBmegle();
 
   const [draft, setDraft] = useState("");
@@ -361,6 +363,15 @@ export default function App() {
                   )}
                   {status === "connected" && (
                     <span className="stage__label">Stranger</span>
+                  )}
+                  {playbackBlocked && (
+                    <button
+                      type="button"
+                      className="stage__tap"
+                      onClick={resumeRemote}
+                    >
+                      Tap to play
+                    </button>
                   )}
                 </div>
 

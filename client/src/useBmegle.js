@@ -62,6 +62,10 @@ export function useBmegle() {
   const roleRef = useRef(null);
   const makingOfferRef = useRef(false);
   const pairedRef = useRef(false);
+  const pendingSignalsRef = useRef([]);
+  const pendingCandidatesRef = useRef([]);
+  const iceRestartedRef = useRef(false);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
   const setPairedState = useCallback((value) => {
     pairedRef.current = value;
@@ -97,6 +101,10 @@ export function useBmegle() {
     }
     roleRef.current = null;
     makingOfferRef.current = false;
+    pendingSignalsRef.current = [];
+    pendingCandidatesRef.current = [];
+    iceRestartedRef.current = false;
+    setPlaybackBlocked(false);
   }, []);
 
   const stopMedia = useCallback(() => {
@@ -109,10 +117,73 @@ export function useBmegle() {
   }, []);
 
   const attachLocalPreview = useCallback(() => {
-    if (localVideoRef.current && localStreamRef.current) {
-      localVideoRef.current.srcObject = localStreamRef.current;
-    }
+    const el = localVideoRef.current;
+    const stream = localStreamRef.current;
+    if (!el || !stream) return;
+    if (el.srcObject !== stream) el.srcObject = stream;
+    el.play?.().catch(() => {});
   }, []);
+
+  const playRemote = useCallback(() => {
+    const el = remoteVideoRef.current;
+    if (!el || !el.srcObject) return;
+
+    const start = (muted) => {
+      el.muted = muted;
+      const result = el.play();
+      if (!result || typeof result.then !== "function") {
+        setPlaybackBlocked(false);
+        return;
+      }
+      result
+        .then(() => setPlaybackBlocked(muted))
+        .catch(() => {
+          if (!muted) start(true);
+          else setPlaybackBlocked(true);
+        });
+    };
+
+    start(false);
+  }, []);
+
+  const resumeRemote = useCallback(() => {
+    const el = remoteVideoRef.current;
+    if (!el) return;
+    el.muted = false;
+    const result = el.play();
+    if (!result || typeof result.then !== "function") {
+      setPlaybackBlocked(false);
+      return;
+    }
+    result
+      .then(() => setPlaybackBlocked(false))
+      .catch(() => {
+        el.muted = true;
+        el.play?.()
+          .then(() => setPlaybackBlocked(true))
+          .catch(() => setPlaybackBlocked(true));
+      });
+  }, []);
+
+  const attachRemoteTrack = useCallback(
+    (track) => {
+      const el = remoteVideoRef.current;
+      if (!el || !track) return;
+      let stream = el.srcObject;
+      if (!(stream instanceof MediaStream)) {
+        stream = new MediaStream();
+        el.srcObject = stream;
+      }
+      if (!stream.getTracks().some((item) => item.id === track.id)) {
+        stream.addTrack(track);
+      }
+      if (track.kind === "video") {
+        track.onunmute = () => playRemote();
+      }
+      playRemote();
+    },
+    [playRemote]
+  );
 
   const ensureMedia = useCallback(async () => {
     if (localStreamRef.current) {
@@ -155,13 +226,102 @@ export function useBmegle() {
     };
   }, []);
 
+  const applySignal = useCallback(async (pc, { description, candidate }) => {
+    if (!pc || pc.connectionState === "closed") return;
+
+    if (description) {
+      const offerCollision =
+        description.type === "offer" &&
+        (makingOfferRef.current || pc.signalingState !== "stable");
+
+      if (offerCollision && roleRef.current === "caller") return;
+
+      await pc.setRemoteDescription(description);
+      const queued = pendingCandidatesRef.current.splice(0);
+      for (const item of queued) {
+        try {
+          await pc.addIceCandidate(item);
+        } catch {
+          /* ignore late candidates */
+        }
+      }
+      if (description.type === "offer") {
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socketRef.current?.emit("signal", { description: pc.localDescription });
+      }
+      return;
+    }
+
+    if (!candidate) return;
+    if (!pc.remoteDescription) {
+      pendingCandidatesRef.current.push(candidate);
+      return;
+    }
+    try {
+      await pc.addIceCandidate(candidate);
+    } catch {
+      /* ignore late candidates */
+    }
+  }, []);
+
   const createPeer = useCallback(
     async (role) => {
+      const earlySignals = pendingSignalsRef.current.splice(0);
       cleanupPeer();
+      pendingSignalsRef.current = earlySignals;
       roleRef.current = role;
       const stream = await ensureMedia();
       const pc = new RTCPeerConnection(getIceServers());
-      pcRef.current = pc;
+
+      pc.onicecandidate = ({ candidate }) => {
+        if (candidate && socketRef.current) {
+          socketRef.current.emit("signal", { candidate });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        attachRemoteTrack(event.track);
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pcRef.current !== pc) return;
+        if (pc.connectionState === "connected") {
+          setStatus("connected");
+          playRemote();
+          return;
+        }
+        if (pc.connectionState !== "failed") return;
+        if (!iceRestartedRef.current && roleRef.current === "caller") {
+          iceRestartedRef.current = true;
+          try {
+            pc.restartIce();
+          } catch (e) {
+            console.error(e);
+          }
+          return;
+        }
+        setStatus("connecting");
+        setError("Video didn't connect. Hit Next to try someone else.");
+      };
+
+      pc.onnegotiationneeded = async () => {
+        try {
+          if (roleRef.current !== "caller") return;
+          if (pc.signalingState !== "stable") return;
+          makingOfferRef.current = true;
+          const offer = await pc.createOffer();
+          if (pcRef.current !== pc) return;
+          await pc.setLocalDescription(offer);
+          socketRef.current?.emit("signal", {
+            description: pc.localDescription,
+          });
+        } catch (e) {
+          console.error(e);
+        } finally {
+          makingOfferRef.current = false;
+        }
+      };
 
       stream.getTracks().forEach((track) => {
         pc.addTrack(track, stream);
@@ -177,46 +337,30 @@ export function useBmegle() {
         };
       }
 
-      pc.onicecandidate = ({ candidate }) => {
-        if (candidate && socketRef.current) {
-          socketRef.current.emit("signal", { candidate });
-        }
-      };
+      pcRef.current = pc;
 
-      pc.ontrack = ({ streams }) => {
-        if (remoteVideoRef.current && streams[0]) {
-          remoteVideoRef.current.srcObject = streams[0];
-        }
-        setStatus("connected");
-      };
-
-      pc.onnegotiationneeded = async () => {
+      const queued = pendingSignalsRef.current.splice(0);
+      for (const msg of queued) {
         try {
-          if (roleRef.current !== "caller") return;
-          makingOfferRef.current = true;
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          socketRef.current?.emit("signal", {
-            description: pc.localDescription,
-          });
+          await applySignal(pc, msg);
         } catch (e) {
-          console.error(e);
-        } finally {
-          makingOfferRef.current = false;
+          console.error("signal error", e);
         }
-      };
+      }
 
       return pc;
     },
-    [cleanupPeer, ensureMedia, wireDataChannel]
+    [applySignal, attachRemoteTrack, cleanupPeer, ensureMedia, playRemote, wireDataChannel]
   );
 
   const createPeerRef = useRef(createPeer);
   const cleanupPeerRef = useRef(cleanupPeer);
+  const applySignalRef = useRef(applySignal);
   const setPairedStateRef = useRef(setPairedState);
   const setModeStateRef = useRef(setModeState);
   createPeerRef.current = createPeer;
   cleanupPeerRef.current = cleanupPeer;
+  applySignalRef.current = applySignal;
   setPairedStateRef.current = setPairedState;
   setModeStateRef.current = setModeState;
 
@@ -246,7 +390,7 @@ export function useBmegle() {
           text:
             nextMode === "text"
               ? "You're connected with a stranger. Say hi."
-              : "You're connected. Say hi.",
+              : "You're paired. Video is connecting.",
         },
       ]);
 
@@ -264,31 +408,15 @@ export function useBmegle() {
       }
     });
 
-    socket.on("signal", async ({ description, candidate }) => {
+    socket.on("signal", async (message) => {
       if (modeRef.current === "text") return;
       const pc = pcRef.current;
-      if (!pc) return;
+      if (!pc) {
+        pendingSignalsRef.current.push(message);
+        return;
+      }
       try {
-        if (description) {
-          const offerCollision =
-            description.type === "offer" &&
-            (makingOfferRef.current || pc.signalingState !== "stable");
-
-          if (offerCollision && roleRef.current === "caller") return;
-
-          await pc.setRemoteDescription(description);
-          if (description.type === "offer") {
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit("signal", { description: pc.localDescription });
-          }
-        } else if (candidate) {
-          try {
-            await pc.addIceCandidate(candidate);
-          } catch {
-            /* ignore late candidates */
-          }
-        }
+        await applySignalRef.current(pc, message);
       } catch (e) {
         console.error("signal error", e);
       }
@@ -497,5 +625,7 @@ export function useBmegle() {
     toggleCam,
     setCoords,
     ensureMedia,
+    playbackBlocked,
+    resumeRemote,
   };
 }
