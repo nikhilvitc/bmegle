@@ -11,3 +11,7 @@ services:
         value: production
       - key: BANGALORE_ONLY
         value: "true"
+      - key: TURN_KEY_ID
+        sync: false
+      - key: TURN_KEY_API_TOKEN
+        sync: false

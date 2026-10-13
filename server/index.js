@@ -31,6 +31,55 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true, service: "bmegle" });
 });
 
+let cachedIceServers = null;
+let cachedIceAt = 0;
+
+async function getTurnIceServers() {
+  const keyId = process.env.TURN_KEY_ID;
+  const apiToken = process.env.TURN_KEY_API_TOKEN;
+  if (!keyId || !apiToken) return null;
+
+  if (cachedIceServers && Date.now() - cachedIceAt < 12 * 60 * 60 * 1000) {
+    return cachedIceServers;
+  }
+
+  const response = await fetch(
+    `https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ttl: 86400 }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error("turn credentials failed", response.status);
+    return cachedIceServers;
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data.iceServers) || data.iceServers.length === 0) {
+    return cachedIceServers;
+  }
+
+  cachedIceServers = data.iceServers;
+  cachedIceAt = Date.now();
+  return cachedIceServers;
+}
+
+app.get("/api/ice", async (_req, res) => {
+  try {
+    const iceServers = await getTurnIceServers();
+    res.json({ iceServers: iceServers || [] });
+  } catch (err) {
+    console.error("ice lookup failed", err.message);
+    res.json({ iceServers: [] });
+  }
+});
+
 app.get("/api/location", async (req, res) => {
   try {
     if (!restrictionEnabled()) {

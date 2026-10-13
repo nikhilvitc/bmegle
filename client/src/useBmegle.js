@@ -1,7 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
-function getPeerConfig() {
+async function loadPeerConfig() {
+  const fallback = fallbackPeerConfig();
+  try {
+    const response = await fetch("/api/ice");
+    if (!response.ok) return fallback;
+    const data = await response.json();
+    if (!Array.isArray(data.iceServers) || data.iceServers.length === 0) {
+      return fallback;
+    }
+    return {
+      bundlePolicy: "max-bundle",
+      iceCandidatePoolSize: 2,
+      iceServers: data.iceServers,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function fallbackPeerConfig() {
   return {
     bundlePolicy: "max-bundle",
     iceCandidatePoolSize: 2,
@@ -360,7 +379,7 @@ export function useBmegle() {
       pendingSignalsRef.current = earlySignals;
       roleRef.current = role;
       const stream = await ensureMedia();
-      const pc = new RTCPeerConnection(getPeerConfig());
+      const pc = new RTCPeerConnection(await loadPeerConfig());
 
       pc.onicecandidate = ({ candidate }) => {
         if (candidate && socketRef.current) {
