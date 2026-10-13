@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
-function getIceServers() {
+function getPeerConfig() {
   return {
+    bundlePolicy: "max-bundle",
+    iceCandidatePoolSize: 2,
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
       { urls: "stun:openrelay.metered.ca:80" },
       {
         urls: "turn:openrelay.metered.ca:80",
@@ -96,6 +100,7 @@ export function useBmegle() {
       pcRef.current.onnegotiationneeded = null;
       pcRef.current.ondatachannel = null;
       pcRef.current.onconnectionstatechange = null;
+      pcRef.current.oniceconnectionstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }
@@ -190,26 +195,40 @@ export function useBmegle() {
       });
   }, []);
 
+  const showRemoteStream = useCallback((el, stream, track) => {
+    if (!el || !stream) return;
+    el.playsInline = true;
+    el.autoplay = true;
+    // Phones often receive audio first. Resetting srcObject is what makes
+    // the later video track actually paint.
+    el.srcObject = null;
+    el.srcObject = stream;
+    if (track?.kind === "video") {
+      const show = () => markVideoLiveRef.current();
+      track.onunmute = show;
+      if (!track.muted) show();
+    }
+    playRemote();
+  }, [playRemote]);
+
   const attachRemoteTrack = useCallback(
-    (track) => {
+    (track, inboundStream) => {
       const el = remoteVideoRef.current;
       if (!el || !track) return;
+      if (inboundStream) {
+        showRemoteStream(el, inboundStream, track);
+        return;
+      }
       let stream = el.srcObject;
       if (!(stream instanceof MediaStream)) {
         stream = new MediaStream();
-        el.srcObject = stream;
       }
       if (!stream.getTracks().some((item) => item.id === track.id)) {
         stream.addTrack(track);
       }
-      if (track.kind === "video") {
-        const show = () => markVideoLiveRef.current();
-        track.onunmute = show;
-        if (!track.muted) show();
-      }
-      playRemote();
+      showRemoteStream(el, stream, track);
     },
-    [playRemote]
+    [showRemoteStream]
   );
 
   const ensureMedia = useCallback(async () => {
@@ -218,10 +237,18 @@ export function useBmegle() {
       return localStreamRef.current;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: true,
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: true,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      }
       localStreamRef.current = stream;
       setMediaReady(true);
       setError(null);
@@ -304,7 +331,7 @@ export function useBmegle() {
       pendingSignalsRef.current = earlySignals;
       roleRef.current = role;
       const stream = await ensureMedia();
-      const pc = new RTCPeerConnection(getIceServers());
+      const pc = new RTCPeerConnection(getPeerConfig());
 
       pc.onicecandidate = ({ candidate }) => {
         if (candidate && socketRef.current) {
@@ -313,19 +340,28 @@ export function useBmegle() {
       };
 
       pc.ontrack = (event) => {
-        attachRemoteTrack(event.track);
+        attachRemoteTrack(event.track, event.streams?.[0]);
+        const ice = pc.iceConnectionState;
+        const linked =
+          ice === "connected" ||
+          ice === "completed" ||
+          pc.connectionState === "connected";
+        if (event.track.kind === "video" && (linked || !event.track.muted)) {
+          markVideoLive();
+        }
       };
 
       const noteLink = () => {
         if (pcRef.current !== pc) return;
         const ice = pc.iceConnectionState;
-        if (
+        const linked =
           ice === "connected" ||
           ice === "completed" ||
-          pc.connectionState === "connected"
-        ) {
-          markVideoLive();
-        }
+          pc.connectionState === "connected";
+        const stream = remoteVideoRef.current?.srcObject;
+        const hasVideo =
+          stream instanceof MediaStream && stream.getVideoTracks().length > 0;
+        if (linked && hasVideo) markVideoLive();
       };
 
       pc.oniceconnectionstatechange = noteLink;
